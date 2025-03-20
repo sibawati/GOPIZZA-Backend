@@ -1,12 +1,3 @@
-[
-  {
-    "id": 1742397398006,
-    "name": "HSR Layout",
-    "zomatoUrl": "https://www.zomato.com/bangalore/gopizza-hsr-bangalore",
-  },
-  {
-    "id": 1742467056400,
-    "name": "Phoenix Mall",
-    "zomatoUrl": "https://www.zomato.com/bangalore/gopizza-1-whitefield-bangalore/reviews"
-  }
-]
+{
+  "restaurants": []
+}
