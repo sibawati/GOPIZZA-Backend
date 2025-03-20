@@ -10,26 +10,34 @@ app.use(cors());
 app.use(express.json());
 
 // Load restaurant data from db.json
-let db = JSON.parse(fs.readFileSync("db.json", "utf8"));
+const getRestaurants = () => {
+    try {
+        const data = fs.readFileSync("db.json", "utf8");
+        return JSON.parse(data).restaurants || [];
+    } catch (error) {
+        console.error("Error loading restaurants:", error);
+        return [];
+    }
+};
 
 // Get all restaurants
 app.get("/restaurants", (req, res) => {
-    res.json(db.restaurants);
+    res.json(getRestaurants());
 });
 
-// Get ratings dynamically from Zomato
+// Get restaurant ratings dynamically
 app.get("/ratings/:id", (req, res) => {
-    const restaurant = db.restaurants.find(r => r.id == req.params.id);
+    const restaurants = getRestaurants();
+    const restaurant = restaurants.find(r => r.id == req.params.id);
+
     if (!restaurant) {
         return res.status(404).json({ error: "Restaurant not found" });
     }
 
     const pythonProcess = spawn("python3", ["scraper.py", restaurant.zomatoUrl]);
-    let data = "";
 
-    pythonProcess.stdout.on("data", chunk => {
-        data += chunk;
-    });
+    let data = "";
+    pythonProcess.stdout.on("data", chunk => { data += chunk; });
 
     pythonProcess.on("close", () => {
         try {
@@ -52,10 +60,10 @@ app.post("/add-restaurant", (req, res) => {
         return res.status(400).json({ error: "Name and Zomato URL are required" });
     }
 
+    let db = { restaurants: getRestaurants() };
     const newRestaurant = { id: Date.now(), name, zomatoUrl };
     db.restaurants.push(newRestaurant);
 
-    // Save to db.json
     fs.writeFile("db.json", JSON.stringify(db, null, 2), (err) => {
         if (err) {
             return res.status(500).json({ error: "Failed to save restaurant" });
@@ -64,7 +72,6 @@ app.post("/add-restaurant", (req, res) => {
     });
 });
 
-// Start server
 app.listen(PORT, () => {
     console.log(`Backend running on port ${PORT}`);
 });
