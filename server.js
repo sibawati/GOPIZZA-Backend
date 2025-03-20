@@ -34,14 +34,30 @@ app.get("/restaurants", (req, res) => {
     res.json(db.restaurants);
 });
 
-// ✅ API to add a new restaurant (now saved permanently)
+// ✅ API to get ratings of a specific restaurant
+app.get("/ratings/:id", (req, res) => {
+    const restaurant = db.restaurants.find(r => r.id == req.params.id);
+    if (restaurant) {
+        res.json({ name: restaurant.name, ratings: restaurant.ratings });
+    } else {
+        res.status(404).json({ error: "Restaurant not found" });
+    }
+});
+
+// ✅ API to add a new restaurant (now saves ratings too)
 app.post("/add-restaurant", (req, res) => {
     const { name, zomatoUrl } = req.body;
     if (!name || !zomatoUrl) {
         return res.status(400).json({ error: "Name and Zomato URL are required" });
     }
 
-    const newRestaurant = { id: Date.now(), name, zomatoUrl, ratings: { dine_in: "N/A", delivery: "N/A" } };
+    const newRestaurant = {
+        id: Date.now(),
+        name,
+        zomatoUrl,
+        ratings: { dine_in: "N/A", delivery: "N/A" } // Default until updated
+    };
+
     db.restaurants.push(newRestaurant);
     saveDatabase(db); // Save to db.json
 
