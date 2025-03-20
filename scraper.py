@@ -2,40 +2,32 @@ import sys
 import requests
 from bs4 import BeautifulSoup
 import json
-import random
 
-# List of user-agents to rotate
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36",
-]
+if len(sys.argv) < 2:
+    print(json.dumps({"error": "No URL provided"}))
+    sys.exit()
 
-def get_zomato_ratings(url):
-    headers = {"User-Agent": random.choice(USER_AGENTS)}
-    response = requests.get(url, headers=headers)
+zomato_url = sys.argv[1]
 
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
+# Headers to prevent blocking
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
 
-        try:
-            rating_elements = soup.find_all("div", class_="sc-1q7bklc-1 cILgox")
+try:
+    response = requests.get(zomato_url, headers=headers)
 
-            if len(rating_elements) >= 2:
-                dine_in = rating_elements[0].text.strip()
-                delivery = rating_elements[1].text.strip()
-                return json.dumps({"dine_in": dine_in, "delivery": delivery})
-            else:
-                return json.dumps({"error": "Ratings not found"})
-        
-        except Exception as e:
-            return json.dumps({"error": "Failed to extract ratings", "details": str(e)})
-    else:
-        return json.dumps({"error": "Failed to fetch data", "status_code": response.status_code})
+    if response.status_code == 403:
+        print(json.dumps({"error": "Blocked by Zomato"}))
+        sys.exit()
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        url = sys.argv[1]
-        print(get_zomato_ratings(url))
-    else:
-        print(json.dumps({"error": "No URL provided"}))
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Extract ratings (update selectors if needed)
+    dine_in_rating = soup.select_one(".sc-1q7bklc-8.kEAXKb").text if soup.select_one(".sc-1q7bklc-8.kEAXKb") else "N/A"
+    delivery_rating = soup.select_one(".sc-1q7bklc-8.KbvGz").text if soup.select_one(".sc-1q7bklc-8.KbvGz") else "N/A"
+
+    print(json.dumps({"dine_in": dine_in_rating, "delivery": delivery_rating}))
+
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
