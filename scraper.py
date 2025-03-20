@@ -11,16 +11,20 @@ def get_zomato_ratings(url):
         soup = BeautifulSoup(response.text, 'html.parser')
 
         try:
-            # Adjust these selectors if Zomato's website structure changes
-            dine_in = soup.find('div', class_='sc-1q7bklc-1 cILgox').text.strip()
-            delivery = soup.find_all('div', class_='sc-1q7bklc-1 cILgox')[1].text.strip()
+            # Ensure elements exist before accessing them
+            rating_elements = soup.find_all('div', class_='sc-1q7bklc-1 cILgox')
 
-            return json.dumps({"dine_in": dine_in, "delivery": delivery})
+            if len(rating_elements) >= 2:
+                dine_in = rating_elements[0].text.strip()
+                delivery = rating_elements[1].text.strip()
+                return json.dumps({"dine_in": dine_in, "delivery": delivery})
+            else:
+                return json.dumps({"error": "Ratings not found on page"})
 
         except Exception as e:
             return json.dumps({"error": "Failed to extract ratings", "details": str(e)})
     else:
-        return json.dumps({"error": "Failed to fetch data"})
+        return json.dumps({"error": "Failed to fetch data", "status_code": response.status_code})
 
 # Run when executed
 if __name__ == "__main__":
