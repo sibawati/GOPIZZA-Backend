@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
+const { exec } = require("child_process");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -27,7 +28,25 @@ app.get("/ratings/:id", (req, res) => {
     res.json({ name: restaurant.name, ratings: restaurant.ratings });
 });
 
-// Add a new restaurant
+// Function to update ratings for a specific restaurant
+function updateRatingsForRestaurant(restaurant, callback) {
+    exec(`python3 scraper.py "${restaurant.zomatoUrl}"`, (error, stdout) => {
+        if (error) {
+            console.error(`Error fetching ratings for ${restaurant.name}:`, error);
+            return callback({ dine_in: "N/A", delivery: "N/A" });
+        }
+
+        try {
+            const scrapedRatings = JSON.parse(stdout);
+            callback(scrapedRatings);
+        } catch (parseError) {
+            console.error("Failed to parse scraper output:", parseError);
+            callback({ dine_in: "N/A", delivery: "N/A" });
+        }
+    });
+}
+
+// Add a new restaurant and fetch its ratings immediately
 app.post("/add-restaurant", (req, res) => {
     const { name, zomatoUrl } = req.body;
     if (!name || !zomatoUrl) {
@@ -36,11 +55,16 @@ app.post("/add-restaurant", (req, res) => {
 
     let db = JSON.parse(fs.readFileSync("db.json", "utf8"));
     const newRestaurant = { id: Date.now(), name, zomatoUrl, ratings: { dine_in: "N/A", delivery: "N/A" } };
-    
     db.restaurants.push(newRestaurant);
-    fs.writeFileSync("db.json", JSON.stringify(db, null, 2));
 
-    res.json({ success: true, restaurant: newRestaurant });
+    // Fetch ratings immediately
+    updateRatingsForRestaurant(newRestaurant, (ratings) => {
+        newRestaurant.ratings = ratings;
+        
+        // Save updated restaurant data
+        fs.writeFileSync("db.json", JSON.stringify(db, null, 2));
+        res.json({ success: true, restaurant: newRestaurant });
+    });
 });
 
 // Start server
