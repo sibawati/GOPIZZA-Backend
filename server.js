@@ -18,18 +18,22 @@ app.get("/restaurants", (req, res) => {
 });
 
 // Get ratings dynamically from Zomato
-app.get("/ratings/:id", (req, res) => {
-    const restaurant = db.restaurants.find(r => r.id == req.params.id);
-    if (!restaurant) {
-        return res.status(404).json({ error: "Restaurant not found" });
+app.get("/restaurants", (req, res) => {
+    try {
+        const restaurants = JSON.parse(fs.readFileSync("db.json", "utf-8"));
+        console.log("Fetched restaurants:", restaurants); // Debugging log
+
+        if (!restaurants || restaurants.length === 0) {
+            return res.status(404).json({ error: "No restaurants found" });
+        }
+
+        res.json(restaurants);
+    } catch (error) {
+        console.error("Error fetching restaurants:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
+});
 
-    const pythonProcess = spawn("python3", ["scraper.py", restaurant.zomatoUrl]);
-
-    let data = "";
-    pythonProcess.stdout.on("data", chunk => {
-        data += chunk;
-    });
 
     pythonProcess.on("close", () => {
         try {
