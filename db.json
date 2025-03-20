@@ -1,3 +1,24 @@
 {
-  "restaurants": []
+  "restaurants": [
+    {
+      "id": 1742397398006,
+      "name": "HSR Layout",
+      "zomatoUrl": "https://www.zomato.com/bangalore/gopizza-hsr-bangalore",
+      "ratings": {
+        "dine_in": "3.2",
+        "delivery": "3.9"
+      },
+      "lastUpdated": "2025-03-20"
+    },
+    {
+      "id": 1742467056400,
+      "name": "Phoenix Mall",
+      "zomatoUrl": "https://www.zomato.com/bangalore/gopizza-1-whitefield-bangalore/reviews",
+      "ratings": {
+        "dine_in": "3.5",
+        "delivery": "4.1"
+      },
+      "lastUpdated": "2025-03-20"
+    }
+  ]
 }
