@@ -1,33 +1,45 @@
-import sys
 import requests
 from bs4 import BeautifulSoup
 import json
+import datetime
 
-if len(sys.argv) < 2:
-    print(json.dumps({"error": "No URL provided"}))
-    sys.exit()
+DB_FILE = "db.json"
 
-zomato_url = sys.argv[1]
+def get_zomato_ratings(url):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
 
-# Headers to prevent blocking
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
 
-try:
-    response = requests.get(zomato_url, headers=headers)
+        try:
+            ratings_divs = soup.find_all("div", class_="sc-1q7bklc-1 cILgox")
+            if len(ratings_divs) >= 2:
+                dine_in = ratings_divs[0].text.strip()
+                delivery = ratings_divs[1].text.strip()
+                return {"dine_in": dine_in, "delivery": delivery}
+        except:
+            pass
+    
+    return {"dine_in": "N/A", "delivery": "N/A"}
 
-    if response.status_code == 403:
-        print(json.dumps({"error": "Blocked by Zomato"}))
-        sys.exit()
+def update_ratings():
+    try:
+        with open(DB_FILE, "r") as file:
+            data = json.load(file)
 
-    soup = BeautifulSoup(response.text, "html.parser")
+        today = datetime.date.today().isoformat()
+        for restaurant in data["restaurants"]:
+            if restaurant.get("lastUpdated") != today:
+                print(f"Updating ratings for {restaurant['name']}...")
+                restaurant["ratings"] = get_zomato_ratings(restaurant["zomatoUrl"])
+                restaurant["lastUpdated"] = today
 
-    # Extract ratings (update selectors if needed)
-    dine_in_rating = soup.select_one(".sc-1q7bklc-8.kEAXKb").text if soup.select_one(".sc-1q7bklc-8.kEAXKb") else "N/A"
-    delivery_rating = soup.select_one(".sc-1q7bklc-8.KbvGz").text if soup.select_one(".sc-1q7bklc-8.KbvGz") else "N/A"
+        with open(DB_FILE, "w") as file:
+            json.dump(data, file, indent=2)
 
-    print(json.dumps({"dine_in": dine_in_rating, "delivery": delivery_rating}))
+    except Exception as e:
+        print("Error updating ratings:", str(e))
 
-except Exception as e:
-    print(json.dumps({"error": str(e)}))
+if __name__ == "__main__":
+    update_ratings()
