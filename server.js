@@ -9,31 +9,36 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-// Load restaurant data from db.json
-let db = JSON.parse(fs.readFileSync("db.json", "utf8"));
+// Function to load restaurant data from db.json
+function loadDB() {
+    return JSON.parse(fs.readFileSync("db.json", "utf8"));
+}
 
-// Get all restaurants
-app.get("/restaurants", (req, res) => {
-    res.json(db.restaurants);
-});
-
-// Get ratings dynamically from Zomato
+// ✅ Get all restaurants (always fetch the latest data)
 app.get("/restaurants", (req, res) => {
     try {
-        const restaurants = JSON.parse(fs.readFileSync("db.json", "utf-8"));
-        console.log("Fetched restaurants:", restaurants); // Debugging log
-
-        if (!restaurants || restaurants.length === 0) {
-            return res.status(404).json({ error: "No restaurants found" });
-        }
-
-        res.json(restaurants);
+        const db = loadDB();
+        res.json(db.restaurants);
     } catch (error) {
         console.error("Error fetching restaurants:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
+// ✅ Fetch ratings dynamically using Python scraper
+app.get("/ratings/:id", (req, res) => {
+    const db = loadDB();
+    const restaurant = db.restaurants.find(r => r.id == req.params.id);
+    if (!restaurant) {
+        return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    const pythonProcess = spawn("python3", ["scraper.py", restaurant.zomatoUrl]);
+
+    let data = "";
+    pythonProcess.stdout.on("data", chunk => {
+        data += chunk;
+    });
 
     pythonProcess.on("close", () => {
         try {
@@ -49,13 +54,14 @@ app.get("/restaurants", (req, res) => {
     });
 });
 
-// Add a new restaurant and save it to db.json
+// ✅ Add a new restaurant and save it to db.json
 app.post("/add-restaurant", (req, res) => {
     const { name, zomatoUrl } = req.body;
     if (!name || !zomatoUrl) {
         return res.status(400).json({ error: "Name and Zomato URL are required" });
     }
 
+    const db = loadDB();
     const newRestaurant = { id: Date.now(), name, zomatoUrl };
     db.restaurants.push(newRestaurant);
 
@@ -68,7 +74,7 @@ app.post("/add-restaurant", (req, res) => {
     });
 });
 
-// Start server
+// ✅ Start server
 app.listen(PORT, () => {
     console.log(`Backend running on port ${PORT}`);
 });
