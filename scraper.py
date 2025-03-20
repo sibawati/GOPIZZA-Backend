@@ -11,16 +11,17 @@ def get_zomato_ratings(url):
         soup = BeautifulSoup(response.text, 'html.parser')
 
         try:
-            ratings = soup.find_all('div', class_='sc-1q7bklc-1 cILgox')
-            dine_in = ratings[0].text.strip() if len(ratings) > 0 else "N/A"
-            delivery = ratings[1].text.strip() if len(ratings) > 1 else "N/A"
+            rating_elements = soup.find_all('div', class_='sc-1q7bklc-1 cILgox')
 
-            return json.dumps({"dine_in": dine_in, "delivery": delivery})
-
+            if len(rating_elements) >= 2:
+                dine_in = rating_elements[0].text.strip()
+                delivery = rating_elements[1].text.strip()
+                return json.dumps({"dine_in": dine_in, "delivery": delivery})
+            else:
+                return json.dumps({"error": "Ratings not found"})
+        
         except Exception as e:
             return json.dumps({"error": "Failed to extract ratings", "details": str(e)})
-    elif response.status_code == 403:
-        return json.dumps({"error": "Access denied (403). Try again later."})
     else:
         return json.dumps({"error": "Failed to fetch data", "status_code": response.status_code})
 
