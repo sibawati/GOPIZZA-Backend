@@ -14,24 +14,20 @@ let db = JSON.parse(fs.readFileSync("db.json", "utf8"));
 
 // Get all restaurants
 app.get("/restaurants", (req, res) => {
-    res.json(db.restaurants);
+    res.json(db.restaurants || []);
 });
 
-// Get ratings dynamically (FETCH ONCE & STORE)
+// Get ratings dynamically using scraper.py
 app.get("/ratings/:id", (req, res) => {
-    const restaurant = db.restaurants.find(r => r.id == req.params.id);
+    const restaurant = db.restaurants.find(r => r.id === parseInt(req.params.id));
     if (!restaurant) {
         return res.status(404).json({ error: "Restaurant not found" });
-    }
-
-    // If ratings are already stored, return them
-    if (restaurant.ratings) {
-        return res.json({ name: restaurant.name, ratings: restaurant.ratings });
     }
 
     const pythonProcess = spawn("python3", ["scraper.py", restaurant.zomatoUrl]);
 
     let data = "";
+
     pythonProcess.stdout.on("data", chunk => {
         data += chunk.toString();
     });
@@ -39,13 +35,6 @@ app.get("/ratings/:id", (req, res) => {
     pythonProcess.on("close", () => {
         try {
             const ratings = JSON.parse(data);
-            restaurant.ratings = ratings; // Save ratings in `db.json`
-
-            // Update db.json with new ratings
-            fs.writeFile("db.json", JSON.stringify(db, null, 2), (err) => {
-                if (err) console.error("Error saving ratings:", err);
-            });
-
             res.json({ name: restaurant.name, ratings });
         } catch (error) {
             res.json({ name: restaurant.name, ratings: { error: "Failed to parse scraper response" } });
@@ -57,7 +46,7 @@ app.get("/ratings/:id", (req, res) => {
     });
 });
 
-// Add a new restaurant and save it to db.json
+// Add a new restaurant
 app.post("/add-restaurant", (req, res) => {
     const { name, zomatoUrl } = req.body;
     if (!name || !zomatoUrl) {
@@ -73,6 +62,20 @@ app.post("/add-restaurant", (req, res) => {
             return res.status(500).json({ error: "Failed to save restaurant" });
         }
         res.json({ success: true, restaurant: newRestaurant });
+    });
+});
+
+// Delete a restaurant
+app.delete("/delete-restaurant/:id", (req, res) => {
+    const restaurantId = parseInt(req.params.id);
+    db.restaurants = db.restaurants.filter(r => r.id !== restaurantId);
+
+    // Save updated list to db.json
+    fs.writeFile("db.json", JSON.stringify(db, null, 2), (err) => {
+        if (err) {
+            return res.status(500).json({ error: "Failed to delete restaurant" });
+        }
+        res.json({ success: true, message: "Restaurant deleted" });
     });
 });
 
